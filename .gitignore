@@ -3,3 +3,4 @@ control_variates
 stratification
 antithetic_variates
 latin_hypercube_sampling
+importance_sampling
