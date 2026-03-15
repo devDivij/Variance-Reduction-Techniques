@@ -28,7 +28,7 @@ Samples from shifted distribution centered near important regions.
 
 **Compile:**
 ```bash
-g++ -std=c++11 -O3 -o method method_name.cpp
+g++ -o method method_name.cpp
 ```
 
 **Run:**
@@ -50,4 +50,4 @@ VRF = Var(Standard MC) / Var(Variance Reduction Method)
 
 ## References
 
-- Glasserman, P. (2003). *Monte Carlo Methods in Financial Engineering*
+- Glasserman, P. (2003). *Monte Carlo Methods in Financial Engineering* Chapter 4: Variance Reduction Techniques
