@@ -91,41 +91,56 @@ void runStandardMonteCarlo(mt19937 &gen, normal_distribution<double> &dist)
     }
 
     double meanPrice = exp(-r * T) * (sumPayoff / n);
-    double variance = (sumSqPayoff / n) - (sumPayoff / n) * (sumPayoff / n);
+    double variancePayoff = (sumSqPayoff / n) - (sumPayoff / n) * (sumPayoff / n);
+    double varianceEstimator = variancePayoff / n;
+    double stdError = sqrt(varianceEstimator) * exp(-r * T);
 
     cout << "--- Standard Monte Carlo ---" << endl;
     cout << "Estimated Price: " << meanPrice << endl;
-    cout << "Variance:        " << variance << endl;
+    cout << "Std Error: " << stdError << endl;
 }
 void runStratifiedMonteCarlo(mt19937 &gen, uniform_real_distribution<double> &udist)
 {
-    double sumPayoff = 0.0;
-    double sumSqPayoff = 0.0;
     double drift = (r - 0.5 * sigma * sigma) * T;
     double vol = sigma * sqrt(T);
-    double strata = 100;
-    double n_eff = n / strata;
-    for (int j = 0; j < n_eff; ++j)
+    int strata = 100;
+    int n_eff = n / strata;
+
+    double overallSum = 0.0;
+    double varianceSumWithin = 0.0;
+
+    for (int i = 0; i < strata; ++i)
     {
-        double sumPayoffi = 0.0;
-        for (int i = 0; i < strata; ++i)
+        double stratumSum = 0.0;
+        double stratumSumSq = 0.0;
+
+        for (int j = 0; j < n_eff; ++j)
         {
             double U = udist(gen);
-            double Z = inverseNormalCDF((i + U) / strata);
+            double Z = inverseNormalCDF((i + U) / static_cast<double>(strata));
             double ST = S0 * exp(drift + vol * Z);
             double payoff = callPayoff(ST, K);
-            sumPayoffi += payoff;
+
+            stratumSum += payoff;
+            stratumSumSq += payoff * payoff;
         }
-        double mean = sumPayoffi / strata;
-        sumPayoff += mean;
-        sumSqPayoff += mean * mean;
+
+        double stratumMean = stratumSum / n_eff;
+        double stratumVar = (stratumSumSq / n_eff) - stratumMean * stratumMean;
+
+        overallSum += stratumMean;
+        varianceSumWithin += stratumVar / n_eff;
     }
-    double meanPrice = exp(-r * T) * (sumPayoff / n_eff);
-    double variance = (sumSqPayoff / n_eff) - (sumPayoff / n_eff) * (sumPayoff / n_eff);
+
+    double meanPayoff = overallSum / strata;
+    double meanPrice = exp(-r * T) * meanPayoff;
+
+    double varianceEstimator = varianceSumWithin / (strata * strata);
+    double stdError = sqrt(varianceEstimator) * exp(-r * T);
 
     cout << "--- Stratified Monte Carlo ---" << endl;
     cout << "Estimated Price: " << meanPrice << endl;
-    cout << "Variance:        " << variance << endl;
+    cout << "Std Error: " << stdError << endl;
 }
 
 int main()

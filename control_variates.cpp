@@ -3,61 +3,101 @@
 #include <vector>
 #include <cmath>
 #include <random>
+#include <numeric>
 using namespace std;
 
-double gen_unif(mt19937 &gen)
+double calculateMean(const vector<double> &data)
 {
-    uniform_real_distribution<double> dist(0.0, 1.0);
-    return dist(gen);
+    return accumulate(data.begin(), data.end(), 0.0) / data.size();
 }
+
 double calculateVariance(double mean, const vector<double> &data)
 {
-
     double accum = 0.0;
-
     for (double d : data)
     {
         accum += (d - mean) * (d - mean);
     }
-    return accum / (data.size() - 1);
+    return accum / data.size();
 }
-double calculateCovariance(double mean1, double mean2, const vector<double> &v1, const std::vector<double> &v2)
-{
-    if (v1.size() <= 1)
-        return 0.0;
-    double accum = 0.0;
 
+double calculateCovariance(double mean1, double mean2, const vector<double> &v1, const vector<double> &v2)
+{
+    double accum = 0.0;
     for (size_t i = 0; i < v1.size(); ++i)
     {
         accum += (v1[i] - mean1) * (v2[i] - mean2);
     }
-
-    return accum / (v1.size() - 1);
+    return accum / v1.size();
 }
-int main()
+
+void runStandardMonteCarlo(mt19937 &gen, int n)
 {
-    int n = 100000;
-    vector<double> Y, X;
-    random_device rd;
-    mt19937 gen(rd());
+    uniform_real_distribution<double> dist(0.0, 1.0);
+    vector<double> Y;
+
     for (int i = 0; i < n; ++i)
     {
-        double u = gen_unif(gen);
+        double u = dist(gen);
+        Y.push_back(exp(u * u));
+    }
+
+    double meanY = calculateMean(Y);
+    double varianceY = calculateVariance(meanY, Y);
+    double varianceEstimator = varianceY / n;
+    double stdError = sqrt(varianceEstimator);
+
+    cout << "--- Standard Monte Carlo ---" << endl;
+    cout << "Estimated Mean: " << meanY << endl;
+    cout << "Std Error: " << stdError << endl;
+}
+
+void runControlVariates(mt19937 &gen, int n)
+{
+    uniform_real_distribution<double> dist(0.0, 1.0);
+    vector<double> Y, X;
+
+    for (int i = 0; i < n; ++i)
+    {
+        double u = dist(gen);
         Y.push_back(exp(u * u));
         X.push_back(u * u);
     }
-    double E1r = 1.0 / 3;
-    double E1o = accumulate(X.begin(), X.end(), 0.0) / n;
-    double E2o = accumulate(Y.begin(), Y.end(), 0.0) / n;
-    double b = calculateCovariance(E1o, E2o, X, Y) / calculateVariance(E1o, X);
-    cout << fixed << setprecision(8);
-    cout << "Variance" << "\t" << "Mean" << endl;
-    cout << "------------------------------------" << endl;
-    cout << calculateVariance(E2o, Y) << '\t' << E2o << " (Original)" << endl;
+
+    double meanX = calculateMean(X);
+    double meanY = calculateMean(Y);
+    double muX = 1.0 / 3.0;
+
+    double covXY = calculateCovariance(meanX, meanY, X, Y);
+    double varX = calculateVariance(meanX, X);
+    double b = covXY / varX;
+
     for (int i = 0; i < n; ++i)
     {
-        Y[i] = Y[i] - b * (X[i] - E1r);
+        Y[i] = Y[i] - b * (X[i] - muX);
     }
-    double E2r = E2o - b * (E1o - E1r);
-    cout << calculateVariance(E2r, Y) << '\t' << E2r << " (Adjusted)";
+
+    double meanY_cv = meanY - b * (meanX - muX);
+    double varianceY_cv = calculateVariance(meanY_cv, Y);
+    double varianceEstimator = varianceY_cv / n;
+    double stdError = sqrt(varianceEstimator);
+
+    cout << "--- Control Variates ---" << endl;
+    cout << "Estimated Mean: " << meanY_cv << endl;
+    cout << "Std Error: " << stdError << endl;
+}
+
+int main()
+{
+    int n = 100000;
+    random_device rd;
+    mt19937 gen(rd());
+
+    cout << fixed << setprecision(8);
+
+    runStandardMonteCarlo(gen, n);
+    cout << endl;
+    runControlVariates(gen, n);
+
+    return 0;
 }

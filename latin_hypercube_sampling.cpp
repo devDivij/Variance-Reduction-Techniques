@@ -129,11 +129,13 @@ void runLHSMonteCarlo(mt19937 &gen, uniform_real_distribution<double> &udist)
     }
 
     double meanPrice = exp(-r * T) * (sumPayoff / n_eff);
-    double varianceOfMeans = (sumSqPayoff / n_eff) - (sumPayoff / n_eff) * (sumPayoff / n_eff);
+    double varianceOfBatchMeans = (sumSqPayoff / n_eff) - (sumPayoff / n_eff) * (sumPayoff / n_eff);
+    double estimatorVariance = varianceOfBatchMeans / n_eff;
+    double stdError = sqrt(estimatorVariance) * exp(-r * T);
 
     cout << "--- LHS Monte Carlo ---" << endl;
     cout << "Estimated Price: " << meanPrice << endl;
-    cout << "Batch Variance:  " << varianceOfMeans << endl;
+    cout << "Std Error: " << stdError << endl;
 }
 
 vector<double> brownian_motion(int steps, double r, double sigma, double dt, mt19937 &gen, normal_distribution<double> &dist)
@@ -174,13 +176,14 @@ void runStandardMonteCarlo(mt19937 &gen, normal_distribution<double> &dist)
         sumPayoff += batchAvgPayoff;
         sumSqPayoff += batchAvgPayoff * batchAvgPayoff;
     }
-
     double meanPrice = exp(-r * T) * (sumPayoff / n_eff);
-    double varianceOfMeans = (sumSqPayoff / n_eff) - (sumPayoff / n_eff) * (sumPayoff / n_eff);
+    double varianceOfBatchMeans = (sumSqPayoff / n_eff) - (sumPayoff / n_eff) * (sumPayoff / n_eff);
+    double estimatorVariance = varianceOfBatchMeans / n_eff;
+    double stdError = sqrt(estimatorVariance) * exp(-r * T);
 
     cout << "--- Standard Monte Carlo ---" << endl;
     cout << "Estimated Price: " << meanPrice << endl;
-    cout << "Batch Variance:  " << varianceOfMeans << endl;
+    cout << "Std Error: " << stdError << endl;
 }
 
 int main()

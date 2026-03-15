@@ -4,7 +4,6 @@
 #include <random>
 #include <algorithm>
 #include <iomanip>
-
 using namespace std;
 
 const double S0 = 100.0;
@@ -24,59 +23,75 @@ double payoff(double ST)
     return max(ST - K, 0.0);
 }
 
-int main()
+void runStandardMonteCarlo(mt19937 &gen, normal_distribution<double> &dist)
 {
-    random_device rd;
-    mt19937 gen(rd());
-    normal_distribution<double> dist(0.0, 1.0);
-    double sum_payoff = 0.0;
-    double sum_sq_payoff = 0.0;
+    double sumPayoff = 0.0;
+    double sumSqPayoff = 0.0;
 
     for (int i = 0; i < n; ++i)
     {
         double z = dist(gen);
         double ST = calculate_ST(z);
         double p = payoff(ST);
-        sum_payoff += p;
-        sum_sq_payoff += p * p;
+
+        sumPayoff += p;
+        sumSqPayoff += p * p;
     }
 
-    double price_std = exp(-r * T) * (sum_payoff / n);
-    double var_std = (sum_sq_payoff / n) - (sum_payoff / n) * (sum_payoff / n);
+    double meanPayoff = sumPayoff / n;
+    double meanPrice = exp(-r * T) * meanPayoff;
+    double variancePayoff = (sumSqPayoff / n) - meanPayoff * meanPayoff;
+    double varianceEstimator = variancePayoff / n;
+    double stdError = sqrt(varianceEstimator) * exp(-r * T);
 
-    double h = log(K / S0) / (sigma * sqrt(T));
+    cout << "--- Standard Monte Carlo ---" << endl;
+    cout << "Estimated Price: " << meanPrice << endl;
+    cout << "Std Error: " << stdError << endl;
+}
 
-    double sum_payoff_is = 0.0;
-    double sum_sq_payoff_is = 0.0;
+void runImportanceSampling(mt19937 &gen, normal_distribution<double> &dist)
+{
+    double h = (log(K / S0) - (r - 0.5 * sigma * sigma) * T) / (sigma * sqrt(T));
+    double sumPayoff = 0.0;
+    double sumSqPayoff = 0.0;
 
     for (int i = 0; i < n; ++i)
     {
         double z = dist(gen);
-
         double z_shifted = z + h;
-
         double ST = calculate_ST(z_shifted);
-
         double p = payoff(ST);
-        double weight = exp(-h * z_shifted + 0.5 * h * h);
-
+        double weight = exp(-h * z - 0.5 * h * h);
         double weighted_payoff = p * weight;
 
-        sum_payoff_is += weighted_payoff;
-        sum_sq_payoff_is += weighted_payoff * weighted_payoff;
+        sumPayoff += weighted_payoff;
+        sumSqPayoff += weighted_payoff * weighted_payoff;
     }
 
-    double price_is = exp(-r * T) * (sum_payoff_is / n);
-    double var_is = (sum_sq_payoff_is / n) - (sum_payoff_is / n) * (sum_payoff_is / n);
-
-    cout << fixed << setprecision(5);
-    cout << "--- Standard MC ---" << endl;
-    cout << "Price: " << price_std << endl;
-    cout << "Variance: " << var_std << endl;
+    double meanPayoff = sumPayoff / n;
+    double meanPrice = exp(-r * T) * meanPayoff;
+    double variancePayoff = (sumSqPayoff / n) - meanPayoff * meanPayoff;
+    double varianceEstimator = variancePayoff / n;
+    double stdError = sqrt(varianceEstimator) * exp(-r * T);
 
     cout << "--- Importance Sampling ---" << endl;
-    cout << "Price: " << price_is << endl;
-    cout << "Std Error: " << var_is << endl;
+    cout << "Estimated Price: " << meanPrice << endl;
+    cout << "Std Error: " << stdError << endl;
+}
+
+int main()
+{
+    random_device rd;
+    mt19937 gen(rd());
+    normal_distribution<double> dist(0.0, 1.0);
+
+    cout << fixed << setprecision(5);
+    cout << "Total Simulations: " << n << endl
+         << endl;
+
+    runStandardMonteCarlo(gen, dist);
+    cout << endl;
+    runImportanceSampling(gen, dist);
 
     return 0;
 }
